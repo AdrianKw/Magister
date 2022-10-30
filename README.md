@@ -28,8 +28,8 @@ na których podstawie został wybrany najlepszy klasyfiaktor. Poniżej przedstaw
 Szereg badań eksperymentalnych oraz analiza ich wyników pozwoliły na określenie docelowej konstrukcji systemu. Za pomocą przeprowadzonych eksperymentów 
 jako finalny klasyfikator został wdrożony SVM ze względu na większą odporność na odtwarzane nagranie z różnych mediów oraz wyższą skuteczność odrzucania osób z poza
 bazy danych. Aby uniemożliwić próbę weryfikacji za pomocą nagrania wdrożono losowanie 3 wyrazów z danej puli 10 wyrazów które następnie osoba weryfikowana ma do 
-przeczytania. Wypowiadana Fraza wygląda w następujący sposób : „[imię oraz nazwisko badanej osoby] [Wyraz 1] [Wyraz 2] [Wyraz 3]”. Schemat blokowy działania systemu 
-został przedstawiony poniżej.
+przeczytania. Wypowiadana Fraza wygląda w następujący sposób : „[imię oraz nazwisko badanej osoby] [Wyraz 1] [Wyraz 2] [Wyraz 3]”. Weryfikacja tego co się mówi 
+zostało zrealizowane poprzez podpięcie się pod API asystenta Google. Schemat blokowy działania systemu został przedstawiony poniżej.
 
 ![alt text](Picture/Schemat.png)
 
