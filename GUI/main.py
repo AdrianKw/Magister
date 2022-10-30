@@ -1,181 +1,155 @@
-import librosa
 import os
-import pickle
-import random
 import numpy as np
+import librosa
 import pandas as pd
-import speech_recognition as sr
 from python_speech_features import mfcc
-from scipy.io import wavfile
-from sklearn import svm
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
-from kivy.app import App
-from kivy.clock import Clock
-from kivy.properties import StringProperty
-from kivy.uix.screenmanager import ScreenManager, Screen
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+from sklearn.metrics import plot_confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn import svm
+from scipy.io import wavfile
+from sklearn.model_selection import cross_val_score
+import soundfile as sf
 
 
-def trim_silence_and_normalization(data_wav):
-    data_norm = data_wav * (1 / np.max(np.abs(data_wav)))
-    clips = librosa.effects.split(data_norm, top_db=20)
-    wav_data = []
-    for c in clips:
-        data_split = data_norm[c[0]: c[1]]
-        wav_data.extend(data_split)
-    return np.array(wav_data)
+def calculate_metrics(target, prediction, average='weighted'):
+    accuracy = accuracy_score(target, prediction)
+    precision = precision_score(target, prediction, average=average)
+    recall = recall_score(target, prediction, average=average)
+    f1 = f1_score(target, prediction, average=average)
+    mislabeled = (target != prediction).sum()
+    total = len(target)
+    return accuracy, precision, recall, f1, mislabeled, total
 
 
-def check_personality(dana, samplerate, My_model):
-    data_trim_norm = trim_silence_and_normalization(dana)
-    mfcc_feat_test = mfcc(data_trim_norm, samplerate, winlen=winlen, winstep=winstep, numcep=numcep,
-                          nfilt=nfilt, nfft=nfft, ceplifter=ceplifter, appendEnergy=appendEnergy, winfunc=winfunc)
-    df_mfcc_feat_test = pd.DataFrame(scaler_standard.transform(mfcc_feat_test))
-    Prediction = pd.DataFrame(My_model.predict(df_mfcc_feat_test))
-    hois = Prediction.value_counts().idxmax()[0]
-    howmuch = Prediction.value_counts(normalize=True).max() * 100
-    return hois, howmuch
+def print_results(metrics, classifier_id='classifier'):
+    print(f'Results for {classifier_id}')
+    print('----')
+    print(f'  Accuracy:  {metrics[0] * 100:.4f} %')
+    print(f'  Precision: {metrics[1] * 100:.4f} %')
+    print(f'  Recall:    {metrics[2] * 100:.4f} %')
+    print(f'  F1 score:  {metrics[3] * 100:.4f} %')
+    print(f'  Mislabeled {metrics[4]} out of {metrics[5]}')
+    print('\n')
 
 
-def feature_extraction():
-    path_train = "obrobka\\"
-    final_train = pd.DataFrame()
-    file_train_list = os.listdir(path_train)
-    for file_train in file_train_list:
-        (sr_train, y_train) = wavfile.read(path_train + file_train)
-        data_trim_norm = trim_silence_and_normalization(y_train)
-        mfcc_feat_train = mfcc(data_trim_norm, sr_train, winlen=winlen, winstep=winstep, numcep=numcep, nfilt=nfilt,
-                               nfft=nfft, ceplifter=ceplifter, appendEnergy=appendEnergy, winfunc=winfunc)
-        df_mfcc_feat_train = pd.DataFrame(mfcc_feat_train)
-        df_mfcc_feat_train['Osoba'] = file_train
-        final_train = pd.concat([final_train, df_mfcc_feat_train])
-    final_train.reset_index(drop=True)
-    final_train.to_csv('Trenujacy.csv', index=False)
+def print_min_max(collumn):
+    print(f'  Maksimum:  {collumn.max():.4f}')
+    print(f'  Minimum:   {collumn.min():.4f}')
+    print(f'  Średnia:   {collumn.mean():.4f}')
+    print(f'  Mediana:   {collumn.median():.4f}')
 
 
-def training_algorythm():
-    scaler_standard = StandardScaler()
-    final_training = pd.read_csv('Trenujacy.csv')
-    y = final_training['Osoba']
-    x = final_training.drop('Osoba', axis=1)
-    x = scaler_standard.fit_transform(x)
-    clf = svm.SVC(kernel='rbf', C=0.5, gamma='auto')
-    clf.fit(x, y)
-    pickle.dump(scaler_standard, open('finalized_scaler.sav', 'wb'))
-    pickle.dump(clf, open('finalized_model_svm.sav', 'wb'))
+def Model_poza(My_model, plik_csv):
+    final_poza = pd.DataFrame()
+    Thatistrue_poza = pd.DataFrame()
+    for file in plik_csv['Name'].unique():
+        One_person_poza = plik_csv.loc[plik_csv['Name'] == file].drop('Name', axis=1)
+        One_person_poza = scaler_standard.transform(One_person_poza)
+
+        Prediction_poza = My_model.predict(One_person_poza)  # tutaj zamieniamy knn na inny model do predykcji
+
+        # Obliczanie na ile osoba sprawdzana jest podobna do samej siebie
+        df11_poza = pd.DataFrame(Prediction_poza, columns=['Ho'])
+        df = pd.DataFrame({'Name': file}, index=[0])
+        final_poza = pd.concat([final_poza, df]).reset_index(drop=True)
+
+        # Obliczanie do kogo osoba sprawdzana jest najbardziej podobna
+        hois = df11_poza.value_counts().idxmax()[0]
+        howmuch = df11_poza.value_counts(normalize=True).max() * 100
+        datahow = pd.DataFrame({'Similar to': hois, 'How much [%]': howmuch}, index=[0])
+        Thatistrue_poza = pd.concat([Thatistrue_poza, datahow]).reset_index(drop=True)
+        # złączenie tabel
+        final_form_poza = pd.concat([final_poza, Thatistrue_poza], axis=1)
+
+    display(final_form_poza)
+    print_min_max(final_form_poza['How much [%]'])
 
 
-def load_model_svm_and_scaler():
-    loaded_model = pickle.load(open('finalized_model_svm.sav', 'rb'))
-    loaded_scaler = pickle.load(open('finalized_scaler.sav', 'rb'))
-    return loaded_model, loaded_scaler
+def Model_odtwarzanie(My_model, plik_csv):
+    final = pd.DataFrame()
+    Thatistrue = pd.DataFrame()
+    for file in plik_csv['Name'].unique():
+        One_person = plik_csv.loc[plik_csv['Name'] == file].drop('Name', axis=1)
+        One_person = scaler_standard.transform(One_person)
+
+        Prediction = My_model.predict(One_person)  # tutaj zamieniamy knn na inny model do predykcji
+
+        # Obliczanie na ile osoba sprawdzana jest podobna do samej siebie
+        df11 = pd.DataFrame(Prediction, columns=['Ho'])
+        df_True = df11[df11["Ho"] == file]
+        probability = df_True.size / df11.size * 100
+        df = pd.DataFrame({'Name': file, 'To himself [%]': probability}, index=[0])
+        final = pd.concat([final, df]).reset_index(drop=True)
+
+        # Obliczanie do kogo osoba sprawdzana jest najbardziej podobna
+        hois = df11.value_counts().idxmax()[0]
+        howmuch = df11.value_counts(normalize=True).max() * 100
+        datahow = pd.DataFrame({'Similar to': hois, 'How much [%]': howmuch}, index=[0])
+        Thatistrue = pd.concat([Thatistrue, datahow]).reset_index(drop=True)
+        # złączenie tabel
+        final_form = pd.concat([final, Thatistrue], axis=1)
+        final_form['Is the same person'] = (final_form['Name'] == final_form['Similar to'])
+        final_form['More than >80%'] = (final_form['How much [%]'] >= 80)
+
+    display(final_form)
+    print_min_max(final_form['To himself [%]'])
 
 
-def check_speaker_words(random_word):
-    with sr.Microphone() as source:
+def Model_test(My_model, X_test_my, y_test_my, pred, plik_csv, scaler):
+    print_results(calculate_metrics(y_test_my, pred))
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ConfusionMatrixDisplay.from_estimator(My_model, X_test_my, y_test_my, ax=ax, xticks_rotation='vertical')
+    plt.title('Confusion matrix')
+    plt.show()
+    final_test = pd.DataFrame()
+    Thatistrue = pd.DataFrame()
+    for file in plik_csv['Name'].unique():
+        One_person = plik_csv.loc[plik_csv['Name'] == file].drop('Name', axis=1)
+        One_person = scaler.transform(One_person)
 
-        recognizer.energy_threshold = 100
-        audio_text = recognizer.listen(source)
-        with open("microphone-results.wav", "wb") as f:
-            f.write(audio_text.get_wav_data())
-        try:
-            pass
-            print(recognizer.recognize_google(audio_text, language="pl-PL").lower())
-            x = recognizer.recognize_google(audio_text, language="pl-PL").lower().split()
-            x = " ".join(x[2:])
-            if x == random_word:
-                return "Tekst rozpoznany i dopasowany pozytywnie", True
-            else:
-                return "Tekst rozpoznany lecz niedopasowany spróbuj jeszcze raz", False
-        except:
-            return "Nierozpoznano tekstu, spróbuj jeszcze raz", False
+        Prediction = My_model.predict(One_person)  # tutaj zamieniamy knn na inny model do predykcji
 
+        # Obliczanie na ile osoba sprawdzana jest podobna do samej siebie
+        df11 = pd.DataFrame(Prediction, columns=['Ho'])
+        df_True = df11[df11["Ho"] == file]
+        probability = df_True.size / df11.size * 100
+        df = pd.DataFrame({'Name': file, 'To himself [%]': probability}, index=[0])
+        final_test = pd.concat([final_test, df]).reset_index(drop=True)
 
-def random_words():
-    word1 = random.choice(WORDS)
-    word2 = random.choice(WORDS)
-    word3 = random.choice(WORDS)
-    return word1 + " " + word2 + " " + word3
+        # Obliczanie do kogo osoba sprawdzana jest najbardziej podobna
+        hois = df11.value_counts().idxmax()[0]
+        howmuch = df11.value_counts(normalize=True).max() * 100
+        datahow = pd.DataFrame({'Similar to': hois, 'How much [%]': howmuch}, index=[0])
+        Thatistrue = pd.concat([Thatistrue, datahow]).reset_index(drop=True)
+        # złączenie tabel
+        final_form = pd.concat([final_test, Thatistrue], axis=1)
 
-
-class Menu(Screen):
-    random_word = StringProperty("")
-    my_text = StringProperty("Po naciśnieciu przycisku przeczytaj wyrazy")
-    jakbardzo = StringProperty("")
-    ktoto = StringProperty("")
-
-    def get_word(self, _):
-        self.my_text = "Proszę mówić"
-        self.random_word = random_words()
-        Clock.schedule_once(self.get_check)
-
-    def get_check(self, _):
-        info, whatnow = check_speaker_words(self.random_word)
-        self.my_text = info
-        self.random_word = ""
-
-        if whatnow:
-            self.my_text = f"{self.my_text}\n\n             Szukanie dopasowania w bazie..."
-            Clock.schedule_once(self.restof)
-
-    def on_button_click(self):
-        Clock.schedule_once(self.get_word)
-
-    def on_button_release(self):
-        Clock.unschedule(self.default_value)
-        Clock.schedule_once(self.default_value, 10)
-
-    def restof(self, _):
-        fs, wavdata = wavfile.read("microphone-results.wav")
-        who, howmuch = check_personality(dana=wavdata, samplerate=fs, My_model=Model)
-        self.jakbardzo = str(int(howmuch))
-        self.ktoto = str(who)[:-4]
-        self.ids.circular_progress.progress = int(howmuch) * 3.6
-        if howmuch > 80:
-            self.my_text = "Dostęp przyznany"
-            self.ids.circular_progress.color_progress = (0, 1, 0, 0.8)
-        else:
-            self.ids.circular_progress.color_progress = (1, 0, 0, 0.8)
-            self.my_text = "Niski współcznynnik dopasowania proszę spróbować jeszcze raz"
-
-    def default_value(self, *args):
-        self.random_word = ""
-        self.my_text = "Po naciśnieciu Przycisku przeczytaj wyrazy"
-        self.jakbardzo = ""
-        self.ktoto = ""
-        self.ids.circular_progress.progress = 0
+    display(final_form)
+    print_min_max(final_form['To himself [%]'])
 
 
-class SettingsScreen(Screen):
-    def extraction(self):
-        feature_extraction()
-
-    def training(self):
-        training_algorythm()
-
-
-class TheLabApp(App):
-    def build(self):
-        sm = ScreenManager()
-        sm.add_widget(Menu(name='menu'))
-        sm.add_widget(SettingsScreen(name='settings'))
-
-        return sm
-
-
-WORDS = ["banan", "arbuz", "mango", "wiśnia", "ananas", "gruszka"]
-
-winlen = 0.12
-winstep = winlen / 2
-numcep = 22
-nfilt = 26
-nfft = int(2 ** 14)
-appendEnergy = False
-ceplifter = 22
-winfunc = np.hamming
-
-recognizer = sr.Recognizer()
-feature_extraction()
-training_algorythm()
-Model, scaler_standard = load_model_svm_and_scaler()
-
-TheLabApp().run()
+def obrobka_mfcc(path, save):
+    final = pd.DataFrame()
+    file_list = os.listdir(path)
+    for file in file_list:
+        (sr, y) = wavfile.read(path + file)
+        y = y * (1 / np.max(np.abs(y)))
+        clips = librosa.effects.split(y, top_db=20)
+        wav_data = []
+        for c in clips:
+            data = y[c[0]: c[1]]
+            wav_data.extend(data)
+        sf.write('5s.wav', wav_data, sr)
+        (sr, y) = wavfile.read('5s.wav')
+        mfcc_feat = mfcc(y, sr, winlen=winlen, winstep=winstep, numcep=numcep, nfilt=nfilt, nfft=nfft, lowfreq=lowfreq,
+                         preemph=preemph, ceplifter=ceplifter, appendEnergy=appendEnergy, winfunc=winfunc)
+        df_mfcc_feat = pd.DataFrame(mfcc_feat)
+        df_mfcc_feat['Name'] = file
+        final = pd.concat([final, df_mfcc_feat])
+    final.reset_index(drop=True)
+    final.to_csv(save + '.csv', index=False)
