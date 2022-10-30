@@ -1,0 +1,42 @@
+<Main>
+    FloatLayout:
+        orientation: 'vertical'
+        size: root.width, root.height
+
+        Label:
+            id: circular_progress
+            text: ""
+            color: (0,0,0,1)
+            size_hint: None,None
+            width: 200
+            height: 200
+
+            progress: 0
+
+            canvas.before:
+                Color:
+                    rgba:(0,0,0,1)
+                Ellipse:
+                    size: self.size
+                    pos: self.pos
+
+                Color:
+                    rgba:(1,0,0,1)
+                Ellipse:
+                    size: self.size
+                    pos: self.pos
+                    angle_end: self.progress
+
+                Color:
+                    rgba:(0.5,1,1,1)
+                Ellipse:
+
+                    size: [self.width - 30, self.height - 30]
+                    pos: [(self.center_x - (self.width - 30)/2), (self.center_y - (self.height-30)/2)]
+        Slider:
+            orientation: "horizontal"
+            min: 0
+            max: 360
+            step:1
+
+            on_value: root.controllTheProgress(*args)

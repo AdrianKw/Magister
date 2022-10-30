@@ -1,0 +1,130 @@
+<Menu>:
+    BoxLayout:
+        orientation:"vertical"
+        canvas.before:
+            Rectangle:
+                source: 'image/background.jpg'
+                size: root.width, root.height
+                pos: self.pos
+
+        BoxLayout:
+            padding: ("30dp", "30dp" , "30dp", "30dp")
+            size_hint: 1, .8
+            orientation:"vertical"
+            Label:
+                pos_hint: {"center_x": 0.5}
+                font_size: sp(20)
+                text: root.my_text
+            Label:
+
+                pos_hint: {"center_x": 0.5}
+                text: root.random_word
+                font_size: sp(20)
+        BoxLayout:
+            orientation:"vertical"
+            Button:
+                background_normal: "image/mic_press.PNG"
+                background_down: "image/mic_on_press.png"
+                size_hint: .3, .1
+                text: ""
+                pos_hint: {"center_y": 0.8, "center_x": 0.5}
+                on_press:
+                    root.on_button_click()
+                on_release:
+                    root.on_button_release()
+
+        BoxLayout:
+            padding: ("10dp", 0 , 0, "10dp")
+            BoxLayout:
+
+                orientation:"vertical"
+                size_hint: 1, 1
+
+                Label:
+                    id: circular_progress
+                    text: root.jakbardzo
+                    color: (0,0,0,1)
+                    size_hint: 0.5,1
+                    #width: 180
+                    #height: 180
+
+                    progress: 0
+                    color_progress: (0,1,0,0.8)
+                    canvas.before:
+                        Color:
+                            rgba:(0,0,0,1)
+                        Ellipse:
+                            size: self.size
+                            pos: self.pos
+
+                        Color:
+                            rgba: self.color_progress
+                        Ellipse:
+                            size: self.size
+                            pos: self.pos
+                            angle_end: self.progress
+
+                        Color:
+                            rgba:(0.5,1,1,1)
+                        Ellipse:
+
+                            size: [self.width - 30, self.height - 30]
+                            pos: [(self.center_x - (self.width - 30)/2), (self.center_y - (self.height-30)/2)]
+                BoxLayout:
+                    orientation:"horizontal"
+                    size_hint: 0.5,0.2
+                    Label:
+                        text: root.ktoto
+                        background_color: (1,1,1,0.2)
+                        canvas.before:
+                            Color:
+                                rgba:self.background_color
+                            Rectangle:
+                                size:self.size
+                                pos: self.pos
+            BoxLayout:
+
+            BoxLayout:
+                size_hint: .3, .5
+                Button:
+                    size_hint: 1, 1
+                    on_press: root.manager.current = 'settings'
+                    background_normal: "image/zebatka.PNG"
+
+<SettingsScreen>:
+    BoxLayout:
+        orientation:"vertical"
+        canvas.before:
+            Rectangle:
+                source: 'image/background.jpg'
+                size: root.width, root.height
+                pos: self.pos
+        BoxLayout:
+            orientation:"vertical"
+            size_hint: 1, .5
+            Label:
+            Label:
+                text: ""
+        BoxLayout:
+            padding: ("30dp", "30dp" , "30dp", "30dp")
+            Button:
+                text: "Wyciąganie cech"
+                size_hint: .3, .5
+                on_press:
+                    root.extraction()
+
+            Label:
+                size_hint: .3, .5
+            Button:
+                text: "Trenowanie modelu"
+                size_hint: .3, .5
+                on_press:
+                    root.training()
+        BoxLayout:
+            padding: ("10dp", "10dp" , "10dp", "10dp")
+            Button:
+                size_hint: .2, .4
+                background_normal: "image/house.PNG"
+                on_press: root.manager.current = 'menu'
+            Label:
+
